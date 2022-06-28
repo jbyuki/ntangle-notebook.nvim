@@ -65,7 +65,7 @@ content = vim.json.encode({
   store_history = true,
   user_expressions = {},
   allow_stdin = false,
-  stop_on_error = true
+  stop_on_error = false
 })
 
 @compute_hmac_key+=

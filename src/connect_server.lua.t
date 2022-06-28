@@ -16,6 +16,7 @@ client_co = coroutine.create(function(getdata, senddata)
   @generate_uuid_for_session
   while true do
     coroutine.yield()
+    @wait_for_kernel_idle
     @send_code
     @read_code_execute_replay
   end

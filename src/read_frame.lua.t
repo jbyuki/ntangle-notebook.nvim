@@ -5,7 +5,7 @@ local read_frame
 @local_defines+=
 function read_frame(getdata)
   local frame = {}
-  frame.content = ""
+  frame.content = {}
   while true do
     local flag = getdata(1):byte()
     frame.is_command = bit.band(flag, 0x4) == 0x4
@@ -45,4 +45,4 @@ function bytes2num(bytes)
 end
 
 @read_frame_content+=
-frame.content = frame.content .. getdata(size)
+table.insert(frame.content, getdata(size))

@@ -168,7 +168,7 @@ end
 
 function read_frame(getdata)
   local frame = {}
-  frame.content = ""
+  frame.content = {}
   while true do
     local flag = getdata(1):byte()
     frame.is_command = bit.band(flag, 0x4) == 0x4
@@ -183,7 +183,7 @@ function read_frame(getdata)
       size = bytes2num(getdata(8))
     end
 
-    frame.content = frame.content .. getdata(size)
+    table.insert(frame.content, getdata(size))
 
     if not has_more then
       break
@@ -393,6 +393,56 @@ function M.connect(port_shell, key)
 
     while true do
       coroutine.yield()
+      while true do
+        local data = create_frame("<IDS|MSG>", false, true)
+
+        -- Looking at the existing front-end implementations
+        -- the msg id is just the session_uuid with a suffix
+        -- i'm just append a counter for simplicity
+        msg_uuid = session_uuid .. tostring(msg_counter)
+
+        local header = vim.json.encode({
+          msg_id = msg_uuid,
+          session = session_uuid,
+          username = "username",
+          date = os.date("!%Y-%m-%dT%TZ"), -- iso 8601
+          msg_type = 'is_complete_request',
+          version = '5.3'
+        })
+
+        parent_header = "{}"
+
+        metadata = "{}"
+
+        content = vim.json.encode({
+          code = code_content,
+          silent = false,
+          store_history = true,
+          user_expressions = {},
+          allow_stdin = false,
+          stop_on_error = false
+        })
+
+        local hmac_code = M.hmac(key, header .. parent_header .. metadata .. content)
+
+
+        data = data .. create_frame(hmac_code, false, true)
+        data = data .. create_frame(header, false, true)
+        data = data .. create_frame(parent_header, false, true)
+        data = data .. create_frame(metadata, false, true)
+        data = data .. create_frame(content, false, false)
+
+        senddata(data)
+
+        local response = read_frame(getdata)
+        local decoded = vim.json.decode(response.content[6])
+
+        if decoded.status == "complete" then
+          break
+        end
+        print("Kernel busy.")
+      end
+
       local data = create_frame("<IDS|MSG>", false, true)
 
       -- Looking at the existing front-end implementations
@@ -419,7 +469,7 @@ function M.connect(port_shell, key)
         store_history = true,
         user_expressions = {},
         allow_stdin = false,
-        stop_on_error = true
+        stop_on_error = false
       })
 
       local hmac_code = M.hmac(key, header .. parent_header .. metadata .. content)
@@ -446,6 +496,12 @@ function M.send_code(python_code)
   assert(client_co)
   code_content = python_code
   coroutine.resume(client_co)
+end
+
+function M.send_ntangle()
+  local code = require"ntangle".get_code_at_cursor()
+  local ntangle_code = table.concat(code, "\n")
+  M.send_code(ntangle_code)
 end
 
 function M.version()
