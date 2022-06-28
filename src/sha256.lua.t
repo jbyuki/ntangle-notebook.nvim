@@ -1,9 +1,10 @@
 ##ntangle-notebook
 @declare+=
--- local sha256
+local sha256
 
 @local_defines+=
-function M.sha256(bytes)
+function sha256(bytes)
+  bytes = vim.deepcopy(bytes)
 	@compute_2_word_length_of_bytes
   @shift_all_bytes_and_prepend_one
 	@add_padding_for_multiple_of_64_bytes
