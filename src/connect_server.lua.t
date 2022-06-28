@@ -70,8 +70,8 @@ end
 
 @receive_ready+=
 local ready = read_frame(getdata)
-print("Ready.")
+vim.api.nvim_echo({{"Ready.", "Normal"}}, false, {})
 
 @read_code_execute_replay+=
 local response = read_frame(getdata)
-print("Done.")
+vim.api.nvim_echo({{"Done.", "Normal"}}, false, {})

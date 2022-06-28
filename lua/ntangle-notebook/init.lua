@@ -199,6 +199,7 @@ function bytes2num(bytes)
     num = bit.lshift(num, 8)
     num = num + bytes:sub(i,i):byte()
   end
+  return num
 end
 
 function generate_uuid()
@@ -387,7 +388,7 @@ function M.connect(port_shell, key)
     senddata(create_frame(data, true))
 
     local ready = read_frame(getdata)
-    print("Ready.")
+    vim.api.nvim_echo({{"Ready.", "Normal"}}, false, {})
 
     session_uuid = generate_uuid()
 
@@ -440,7 +441,7 @@ function M.connect(port_shell, key)
         if decoded.status == "complete" then
           break
         end
-        print("Kernel busy.")
+        vim.api.nvim_echo({{"Kernel Busy.", "ErrorMsg"}}, false, {})
       end
 
       local data = create_frame("<IDS|MSG>", false, true)
@@ -484,7 +485,7 @@ function M.connect(port_shell, key)
       senddata(data)
 
       local response = read_frame(getdata)
-      print("Done.")
+      vim.api.nvim_echo({{"Done.", "Normal"}}, false, {})
     end
   end)
 

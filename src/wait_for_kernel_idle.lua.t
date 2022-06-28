@@ -4,7 +4,7 @@ while true do
   @send_status_request
   @receive_status_request
   @break_if_status_complete
-  print("Kernel busy.")
+  vim.api.nvim_echo({{"Kernel Busy.", "ErrorMsg"}}, false, {})
 end
 
 @send_status_request+=

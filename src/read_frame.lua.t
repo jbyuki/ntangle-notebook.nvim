@@ -42,6 +42,7 @@ function bytes2num(bytes)
     num = bit.lshift(num, 8)
     num = num + bytes:sub(i,i):byte()
   end
+  return num
 end
 
 @read_frame_content+=
