@@ -389,7 +389,7 @@ function M.connect(port_shell)
     session_uuid = generate_uuid()
 
     local data = create_frame("<IDS|MSG>", false, true)
-    local key = "cca4dd69-acfb0003c2d8e1a11babad66"
+    local key = "4e7c0607-58acf291f277772cfacc9ab2"
 
     -- Looking at the existing front-end implementations
     -- the msg id is just the session_uuid with a suffix

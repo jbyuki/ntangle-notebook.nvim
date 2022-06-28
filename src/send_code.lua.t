@@ -1,7 +1,7 @@
 ##ntangle-notebook
 @send_code+=
 local data = create_frame("<IDS|MSG>", false, true)
-local key = "cca4dd69-acfb0003c2d8e1a11babad66"
+local key = "4e7c0607-58acf291f277772cfacc9ab2"
 
 @serialize_header
 @serialize_parent_header
