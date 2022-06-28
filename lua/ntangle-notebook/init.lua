@@ -27,7 +27,7 @@ local bytes2num
 
 local generate_uuid
 
-local sha256
+-- local sha256
 
 
 local SSIG1, SSIG0
@@ -101,7 +101,7 @@ end
 function create_message(msg)
   return create_frame("", false, true) .. create_frame(msg, false, false)
 end
-  function M.hmac(key, msg)
+function M.hmac(key, msg)
   -- https://datatracker.ietf.org/doc/html/rfc2104
   -- https://en.wikipedia.org/wiki/HMAC
   local B = 64 -- Block size for SHA-256
@@ -109,8 +109,9 @@ end
   key = str2tbl(key)
   msg = str2tbl(msg)
 
+
   if #key > B then
-    key_padded = sha256(key)
+    key_padded = M.sha256(key)
   else
     key_padded = vim.deepcopy(key)
 
@@ -131,11 +132,16 @@ end
 
   local xored = xor_all(key_padded, ipad)
   vim.list_extend(xored, msg)
-  local rhs = sha256(xored)
+  local rhs = M.sha256(xored)
   local lhs = xor_all(key_padded, opad)
   vim.list_extend(lhs, rhs)
-  return sha256(lhs)
+  local result = M.sha256(lhs)
 
+  local hexstr = ""
+  for i=1,#result do
+    hexstr = hexstr .. string.format("%02x", result[i])
+  end
+  return hexstr
 
 end
 
@@ -203,8 +209,8 @@ function generate_uuid()
   end)
 end
 
-function sha256(bytes)
-  bytes = vim.deepcopy(bytes)
+function M.sha256(bytes)
+  local bytes = vim.deepcopy(bytes)
 	local len = {}
 	local bytes_len = #bytes*8
 
@@ -215,13 +221,13 @@ function sha256(bytes)
 
   table.insert(bytes, 0x80)
 
-	local remain = (64 - (#bytes % 64)) % 64
+	local remain = (64 - ((#bytes+8) % 64)) % 64
 	for i=64-remain+1,64 do
-	  local byte = 0
-	  if 64-i < 8 then
-	    byte = bit.bor(byte, len[64-i+1])
-	  end
-	  table.insert(bytes, byte)
+	  table.insert(bytes, 0)
+	end
+
+	for i=1,8 do
+	  table.insert(bytes, len[8-i+1])
 	end
 
 
@@ -383,7 +389,7 @@ function M.connect(port_shell)
     session_uuid = generate_uuid()
 
     local data = create_frame("<IDS|MSG>", false, true)
-    local key = "46706628-6bc05fa65b9866aa5392800b"
+    local key = "cca4dd69-acfb0003c2d8e1a11babad66"
 
     -- Looking at the existing front-end implementations
     -- the msg id is just the session_uuid with a suffix
@@ -412,10 +418,10 @@ function M.connect(port_shell)
       stop_on_error = true
     })
 
-    local hmac = hmac(key, header .. parent_header .. metadata .. content)
+    local hmac_code = M.hmac(key, header .. parent_header .. metadata .. content)
 
 
-    data = data .. create_frame(hmac, false, true)
+    data = data .. create_frame(hmac_code, false, true)
     data = data .. create_frame(header, false, true)
     data = data .. create_frame(parent_header, false, true)
     data = data .. create_frame(metadata, false, true)

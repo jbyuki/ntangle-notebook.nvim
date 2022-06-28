@@ -1,10 +1,10 @@
 ##ntangle-notebook
 @declare+=
-local sha256
+-- local sha256
 
 @local_defines+=
-function sha256(bytes)
-  bytes = vim.deepcopy(bytes)
+function M.sha256(bytes)
+  local bytes = vim.deepcopy(bytes)
 	@compute_2_word_length_of_bytes
   @shift_all_bytes_and_prepend_one
 	@add_padding_for_multiple_of_64_bytes
@@ -30,13 +30,13 @@ end
 table.insert(bytes, 0x80)
 
 @add_padding_for_multiple_of_64_bytes+=
-local remain = (64 - (#bytes % 64)) % 64
+local remain = (64 - ((#bytes+8) % 64)) % 64
 for i=64-remain+1,64 do
-  local byte = 0
-  if 64-i < 8 then
-    byte = bit.bor(byte, len[64-i+1])
-  end
-  table.insert(bytes, byte)
+  table.insert(bytes, 0)
+end
+
+for i=1,8 do
+  table.insert(bytes, len[8-i+1])
 end
 
 

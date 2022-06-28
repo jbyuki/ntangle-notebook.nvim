@@ -1,7 +1,7 @@
 ##ntangle-notebook
 @send_code+=
 local data = create_frame("<IDS|MSG>", false, true)
-local key = "46706628-6bc05fa65b9866aa5392800b"
+local key = "cca4dd69-acfb0003c2d8e1a11babad66"
 
 @serialize_header
 @serialize_parent_header
@@ -70,10 +70,10 @@ content = vim.json.encode({
 })
 
 @compute_hmac_key+=
-local hmac = hmac(key, header .. parent_header .. metadata .. content)
+local hmac_code = M.hmac(key, header .. parent_header .. metadata .. content)
 
 @create_frames+=
-data = data .. create_frame(hmac, false, true)
+data = data .. create_frame(hmac_code, false, true)
 data = data .. create_frame(header, false, true)
 data = data .. create_frame(parent_header, false, true)
 data = data .. create_frame(metadata, false, true)

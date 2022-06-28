@@ -3,7 +3,7 @@
 -- local hmac
 
 @local_defines+=
-  function M.hmac(key, msg)
+function M.hmac(key, msg)
   -- https://datatracker.ietf.org/doc/html/rfc2104
   -- https://en.wikipedia.org/wiki/HMAC
   local B = 64 -- Block size for SHA-256
@@ -14,12 +14,13 @@
   @computer_inner_padded
   @computer_outer_padded
   @compute_result
+  @convert_result_to_hex_string
 
 end
 
 @compute_padded_key+=
 if #key > B then
-  key_padded = sha256(key)
+  key_padded = M.sha256(key)
 else
   key_padded = vim.deepcopy(key)
 
@@ -57,10 +58,10 @@ end
 @compute_result+=
 local xored = xor_all(key_padded, ipad)
 vim.list_extend(xored, msg)
-local rhs = sha256(xored)
+local rhs = M.sha256(xored)
 local lhs = xor_all(key_padded, opad)
 vim.list_extend(lhs, rhs)
-return sha256(lhs)
+local result = M.sha256(lhs)
 
 @declare+=
 local str2tbl
@@ -77,3 +78,10 @@ end
 @convert_key_to_byte_array+=
 key = str2tbl(key)
 msg = str2tbl(msg)
+
+@convert_result_to_hex_string+=
+local hexstr = ""
+for i=1,#result do
+  hexstr = hexstr .. string.format("%02x", result[i])
+end
+return hexstr
