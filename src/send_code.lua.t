@@ -1,7 +1,6 @@
 ##ntangle-notebook
 @send_code+=
 local data = create_frame("<IDS|MSG>", false, true)
-local key = "4e7c0607-58acf291f277772cfacc9ab2"
 
 @serialize_header
 @serialize_parent_header
@@ -61,7 +60,7 @@ metadata = "{}"
 
 @serialize_content+=
 content = vim.json.encode({
-  code = "a = 1234",
+  code = code_content,
   silent = false,
   store_history = true,
   user_expressions = {},
@@ -78,3 +77,13 @@ data = data .. create_frame(header, false, true)
 data = data .. create_frame(parent_header, false, true)
 data = data .. create_frame(metadata, false, true)
 data = data .. create_frame(content, false, false)
+
+@defines+=
+function M.send_code(python_code)
+  assert(client_co)
+  code_content = python_code
+  coroutine.resume(client_co)
+end
+
+@variables+=
+local code_content

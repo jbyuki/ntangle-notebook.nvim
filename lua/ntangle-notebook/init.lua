@@ -6,6 +6,9 @@ math.randomseed(os.time())
 
 local msg_counter = 1
 
+local code_content
+local client_co
+
 local property_value
 
 local bytestr2tbl
@@ -366,8 +369,8 @@ local function create_client(port, co)
   return client
 end
 
-function M.connect(port_shell)
-  local co = coroutine.create(function(getdata, senddata)
+function M.connect(port_shell, key)
+  client_co = coroutine.create(function(getdata, senddata)
     local greeting = string.char(0xFF) .. ("\0"):rep(8) .. string.char(0x7F)
     senddata(greeting)
 
@@ -384,57 +387,65 @@ function M.connect(port_shell)
     senddata(create_frame(data, true))
 
     local ready = read_frame(getdata)
-    print("is ready!")
+    print("Ready.")
 
     session_uuid = generate_uuid()
 
-    local data = create_frame("<IDS|MSG>", false, true)
-    local key = "4e7c0607-58acf291f277772cfacc9ab2"
+    while true do
+      coroutine.yield()
+      local data = create_frame("<IDS|MSG>", false, true)
 
-    -- Looking at the existing front-end implementations
-    -- the msg id is just the session_uuid with a suffix
-    -- i'm just append a counter for simplicity
-    msg_uuid = session_uuid .. tostring(msg_counter)
+      -- Looking at the existing front-end implementations
+      -- the msg id is just the session_uuid with a suffix
+      -- i'm just append a counter for simplicity
+      msg_uuid = session_uuid .. tostring(msg_counter)
 
-    local header = vim.json.encode({
-      msg_id = msg_uuid,
-      session = session_uuid,
-      username = "username",
-      date = os.date("!%Y-%m-%dT%TZ"), -- iso 8601
-      msg_type = 'execute_request',
-      version = '5.3'
-    })
+      local header = vim.json.encode({
+        msg_id = msg_uuid,
+        session = session_uuid,
+        username = "username",
+        date = os.date("!%Y-%m-%dT%TZ"), -- iso 8601
+        msg_type = 'execute_request',
+        version = '5.3'
+      })
 
-    parent_header = "{}"
+      parent_header = "{}"
 
-    metadata = "{}"
+      metadata = "{}"
 
-    content = vim.json.encode({
-      code = "a = 1234",
-      silent = false,
-      store_history = true,
-      user_expressions = {},
-      allow_stdin = false,
-      stop_on_error = true
-    })
+      content = vim.json.encode({
+        code = code_content,
+        silent = false,
+        store_history = true,
+        user_expressions = {},
+        allow_stdin = false,
+        stop_on_error = true
+      })
 
-    local hmac_code = M.hmac(key, header .. parent_header .. metadata .. content)
+      local hmac_code = M.hmac(key, header .. parent_header .. metadata .. content)
 
 
-    data = data .. create_frame(hmac_code, false, true)
-    data = data .. create_frame(header, false, true)
-    data = data .. create_frame(parent_header, false, true)
-    data = data .. create_frame(metadata, false, true)
-    data = data .. create_frame(content, false, false)
-    senddata(data)
+      data = data .. create_frame(hmac_code, false, true)
+      data = data .. create_frame(header, false, true)
+      data = data .. create_frame(parent_header, false, true)
+      data = data .. create_frame(metadata, false, true)
+      data = data .. create_frame(content, false, false)
 
-    local response = read_frame(getdata)
-    print("has response!")
-    print("Done!")
+      senddata(data)
+
+      local response = read_frame(getdata)
+      print("Done.")
+    end
   end)
 
-  create_client(port_shell, co)
+  create_client(port_shell, client_co)
 
+end
+
+function M.send_code(python_code)
+  assert(client_co)
+  code_content = python_code
+  coroutine.resume(client_co)
 end
 
 function M.version()

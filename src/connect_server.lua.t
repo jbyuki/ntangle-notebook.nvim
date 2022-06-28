@@ -1,12 +1,12 @@
 ##ntangle-notebook
 @defines+=
-function M.connect(port_shell)
+function M.connect(port_shell, key)
   @send_code_coroutine_test
   @connect_to_shell
 end
 
 @send_code_coroutine_test+=
-local co = coroutine.create(function(getdata, senddata)
+client_co = coroutine.create(function(getdata, senddata)
   @send_greeting
   @receive_greeting
   @send_remaining_greeting
@@ -14,16 +14,21 @@ local co = coroutine.create(function(getdata, senddata)
   @send_ready
   @receive_ready
   @generate_uuid_for_session
-  @send_code
-  @read_code_execute_replay
-  print("Done!")
+  while true do
+    coroutine.yield()
+    @send_code
+    @read_code_execute_replay
+  end
 end)
+
+@declare+=
+local client_co
 
 @receive_greeting+=
 getdata(11)
 
 @connect_to_shell+=
-create_client(port_shell, co)
+create_client(port_shell, client_co)
 
 @send_greeting+=
 local greeting = string.char(0xFF) .. ("\0"):rep(8) .. string.char(0x7F)
@@ -64,8 +69,8 @@ end
 
 @receive_ready+=
 local ready = read_frame(getdata)
-print("is ready!")
+print("Ready.")
 
 @read_code_execute_replay+=
 local response = read_frame(getdata)
-print("has response!")
+print("Done.")
