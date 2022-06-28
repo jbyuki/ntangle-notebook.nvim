@@ -1,6 +1,10 @@
 -- Generated using ntangle.nvim
 local M = {}
-local bit = require"bit"
+local bit = require("bit")
+
+math.randomseed(os.time())
+
+local msg_counter = 1
 
 local property_value
 
@@ -11,9 +15,42 @@ local num2bytes
 
 local create_message
 
+local hmac
+
+local xor_str
+
 local read_frame
 
 local bytes2num
+
+local generate_uuid
+
+-- local sha256
+
+
+local SSIG1, SSIG0
+
+local K = {
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
+    0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+    0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
+    0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
+    0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+    0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
+    0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
+    0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+    0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+}
+
+local BSIG0, BSIG1
+local CH, MAJ
 
 function property_value(property, value)
   return string.char(property:len()) .. property .. num2bytes(value:len(), 4) .. value
@@ -62,6 +99,46 @@ end
 function create_message(msg)
   return create_frame("", false, true) .. create_frame(msg, false, false)
 end
+  function hmac(key, msg)
+  -- https://datatracker.ietf.org/doc/html/rfc2104
+  -- https://en.wikipedia.org/wiki/HMAC
+  local B = 64 -- Block size for SHA-256
+
+
+  if key:len() > B then
+    key_padded = vim.fn.sha256(key)
+  else
+    key_padded = key
+
+    for i=1,B-key:len() do
+      key_padded = key_padded .. "0"
+    end
+  end
+
+  local ipad = ("36"):rep(B)
+
+  local opad = ("5c"):rep(B)
+
+  local rhs = vim.fn.sha256(xor_str(key_padded, ipad) .. msg)
+  local lhs = xor_str(key_padded, opad)
+  return vim.fn.sha256(lhs .. rhs)
+
+end
+
+function xor_str(a, b)
+  assert(a:len() == b:len())
+
+  local result = ""
+  for i=1,a:len() do
+    local ai = tonumber(a:sub(i,i), 16)
+    local bi = tonumber(b:sub(i,i), 16)
+
+    local ri = bit.bxor(ai,bi)
+    result = string.format("%x", ri) .. result 
+  end
+  return result
+end
+
 function read_frame(getdata)
   local frame = {}
   frame.content = ""
@@ -95,6 +172,121 @@ function bytes2num(bytes)
     num = bit.lshift(num, 8)
     num = num + bytes:sub(i,i):byte()
   end
+end
+
+function generate_uuid()
+  -- Generate a UUID version 4 (all random)
+  -- Taken straight from https://gist.github.com/jrus/3197011
+  -- Thank you jrus
+  local template ='xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
+  return string.gsub(template, '[xy]', function (c)
+    local v = (c == 'x') and math.random(0, 0xf) or math.random(8, 0xb)
+    return string.format('%x', v)
+  end)
+end
+
+function M.sha256(bytes)
+	local len = {}
+	local bytes_len = #bytes*8
+
+	for i=1,8 do
+		table.insert(len, bit.band(bytes_len, 0xFF))
+		bytes_len = bit.rshift(bytes_len, 8)
+	end
+
+  table.insert(bytes, 0x80)
+
+	local remain = (64 - (#bytes % 64)) % 64
+	for i=64-remain+1,64 do
+	  local byte = 0
+	  if 64-i < 8 then
+	    byte = bit.bor(byte, len[64-i+1])
+	  end
+	  table.insert(bytes, byte)
+	end
+
+
+	local H = {
+	  0x6A09E667,
+	  0xBB67AE85,
+	  0x3C6EF372,
+	  0xA54FF53A,
+	  0x510E527F,
+	  0x9B05688C,
+	  0x1F83D9AB,
+	  0x5BE0CD19
+	}
+
+	local W = {}
+	for i = 1,#bytes,64 do
+		for j=0,15 do
+		  W[j] = from8to32(
+		    bytes[i+4*j+0], bytes[i+4*j+1], 
+		    bytes[i+4*j+2], bytes[i+4*j+3])
+		end
+
+		for t=16,63 do
+		  W[t] = SSIG1(W[t-2]) + W[t-7] + SSIG0(W[t-15]) + W[t-16]
+		end
+
+		local a, b, c, d, e, f, g, h = unpack(H)
+
+		for t=0,63 do
+		  local T1 = bit.band(h + BSIG1(e) + CH(e,f,g) + K[t+1] + W[t], 0xFFFFFFFF)
+
+		  local T2 = bit.band(BSIG0(a) + MAJ(a,b,c), 0xFFFFFFFF)
+		  h = g   g = f  f = e   e = bit.band(d + T1, 0xFFFFFFFF)
+		  d = c   c = b  b = a   a = bit.band(T1 + T2, 0xFFFFFFFF)
+		end
+
+		H[1] = H[1]+a
+		H[2] = H[2]+b
+		H[3] = H[3]+c
+		H[4] = H[4]+d
+		H[5] = H[5]+e
+		H[6] = H[6]+f
+		H[7] = H[7]+g
+		H[8] = H[8]+h
+
+	end
+
+	local digest = {}
+	for i=1,8 do
+		table.insert(digest, bit.band(bit.rshift(H[i], 24), 0xFF))
+		table.insert(digest, bit.band(bit.rshift(H[i], 16), 0xFF))
+		table.insert(digest, bit.band(bit.rshift(H[i],  8), 0xFF))
+		table.insert(digest, bit.band(bit.rshift(H[i],  0), 0xFF))
+	end
+	return digest
+end
+
+function from8to32(b1, b2, b3, b4)
+	return bit.lshift(b1, 24) + bit.lshift(b2, 16)
+		+ bit.lshift(b3, 8) + bit.lshift(b4, 0)
+end
+
+function SSIG1(x)
+  return bit.bxor(bit.bxor(bit.ror(x, 17), bit.ror(x, 19)), bit.rshift(x, 10))
+end
+
+function SSIG0(x)
+  return bit.bxor(bit.bxor(bit.ror(x, 7), bit.ror(x, 18)), bit.rshift(x, 3))
+end
+
+function BSIG0(x)
+  return bit.bxor(bit.bxor(bit.ror(x, 2), bit.ror(x, 13)), bit.ror(x, 22))
+end
+
+function BSIG1(x)
+  return bit.bxor(bit.bxor(bit.ror(x, 6), bit.ror(x, 11)), bit.ror(x, 25))
+end
+
+function CH(x, y, z)
+  return bit.bxor(bit.band(x, y), bit.band(bit.bnot(x), z))
+end
+
+function MAJ(x, y, z)
+  return bit.bxor(bit.bxor(bit.band(x, y), bit.band(x, z)), bit.band(y, z))
 end
 
 local function create_client(port, co)
@@ -162,17 +354,58 @@ function M.connect(port_shell)
     getdata(64-11)
 
     local data = string.char(0x5) .. "READY" 
-    data = data .. property_value("Socket-Type", "REQ")
+    data = data .. property_value("Socket-Type", "DEALER")
     data = data .. property_value("Identity", "")
     senddata(create_frame(data, true))
 
     local ready = read_frame(getdata)
+    print("is ready!")
 
-    senddata(create_message("I'm sending a message from Neovim!!!!!!"))
+    session_uuid = generate_uuid()
+
+    local data = create_frame("<IDS|MSG>", false, true)
+    local key = "46706628-6bc05fa65b9866aa5392800b"
+
+    -- Looking at the existing front-end implementations
+    -- the msg id is just the session_uuid with a suffix
+    -- i'm just append a counter for simplicity
+    msg_uuid = session_uuid .. tostring(msg_counter)
+
+    local header = vim.json.encode({
+      msg_id = msg_uuid,
+      session = session_uuid,
+      username = "username",
+      date = os.date("!%Y-%m-%dT%TZ"), -- iso 8601
+      msg_type = 'execute_request',
+      version = '5.3'
+    })
+
+    parent_header = "{}"
+
+    metadata = "{}"
+
+    content = vim.json.encode({
+      code = "a = 1234",
+      silent = false,
+      store_history = true,
+      user_expressions = {},
+      allow_stdin = false,
+      stop_on_error = true
+    })
+
+    local hmac = hmac(key, header .. parent_header .. metadata .. content)
+
+
+    data = data .. create_frame(hmac, false, true)
+    data = data .. create_frame(header, false, true)
+    data = data .. create_frame(parent_header, false, true)
+    data = data .. create_frame(metadata, false, true)
+    data = data .. create_frame(content, false, false)
+    senddata(data)
 
     local response = read_frame(getdata)
-    print("response")
-    print(vim.inspect(response))
+    print("has response!")
+    print("Done!")
   end)
 
   create_client(port_shell, co)

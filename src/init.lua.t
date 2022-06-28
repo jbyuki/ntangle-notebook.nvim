@@ -2,6 +2,7 @@
 @../lua/ntangle-notebook/init.lua=
 local M = {}
 @requires
+@generate_random_seed
 @variables
 @declare
 @local_defines

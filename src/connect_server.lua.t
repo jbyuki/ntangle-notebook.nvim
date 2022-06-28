@@ -13,7 +13,10 @@ local co = coroutine.create(function(getdata, senddata)
   @receive_remaining_greeting
   @send_ready
   @receive_ready
-  @send_test_message
+  @generate_uuid_for_session
+  @send_code
+  @read_code_execute_replay
+  print("Done!")
 end)
 
 @receive_greeting+=
@@ -35,7 +38,7 @@ getdata(64-11)
 
 @send_ready+=
 local data = string.char(0x5) .. "READY" 
-data = data .. property_value("Socket-Type", "REQ")
+data = data .. property_value("Socket-Type", "DEALER")
 data = data .. property_value("Identity", "")
 senddata(create_frame(data, true))
 
@@ -61,10 +64,8 @@ end
 
 @receive_ready+=
 local ready = read_frame(getdata)
+print("is ready!")
 
-@send_test_message+=
-senddata(create_message("I'm sending a message from Neovim!!!!!!"))
-
+@read_code_execute_replay+=
 local response = read_frame(getdata)
-print("response")
-print(vim.inspect(response))
+print("has response!")

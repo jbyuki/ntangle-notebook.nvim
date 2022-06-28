@@ -23,9 +23,6 @@ if has_more then
   flag = flag + 0x1
 end
 
-@requires+=
-local bit = require"bit"
-
 @create_size_bytes+=
 if len < 256 then
   size = string.char(len)
