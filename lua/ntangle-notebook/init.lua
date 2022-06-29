@@ -416,7 +416,7 @@ function M.connect(port_shell, key)
         metadata = "{}"
 
         content = vim.json.encode({
-          code = code_content,
+          code = "",
           silent = false,
           store_history = true,
           user_expressions = {},
@@ -441,6 +441,7 @@ function M.connect(port_shell, key)
         if decoded.status == "complete" then
           break
         end
+
         vim.api.nvim_echo({{"Kernel Busy.", "ErrorMsg"}}, false, {})
       end
 
@@ -467,7 +468,7 @@ function M.connect(port_shell, key)
       content = vim.json.encode({
         code = code_content,
         silent = false,
-        store_history = true,
+        store_history = false,
         user_expressions = {},
         allow_stdin = false,
         stop_on_error = false
@@ -501,6 +502,13 @@ end
 
 function M.send_ntangle()
   local code = require"ntangle".get_code_at_cursor()
+  local ntangle_code = table.concat(code, "\n")
+
+  M.send_code(ntangle_code)
+end
+
+function M.send_ntangle_visual()
+  local code = require"ntangle".get_code_at_vrange()
   local ntangle_code = table.concat(code, "\n")
   M.send_code(ntangle_code)
 end
