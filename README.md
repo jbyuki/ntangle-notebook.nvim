@@ -4,6 +4,8 @@ Jupyter front written in Lua. It will be made compatible with ntangle.nvim.
 
 **WIP**
 
+![](https://github.com/jbyuki/gifs/blob/main/2022-06-29%2016-44-44_Trim.gif?raw=true)
+
 
 Test
 ----
