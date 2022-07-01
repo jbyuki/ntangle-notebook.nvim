@@ -1,6 +1,7 @@
 ##ntangle-notebook
 @defines+=
 function M.connect(port_shell, key)
+  @if_no_info_provided_find_existing_kernel
   @send_code_coroutine_test
   @connect_to_shell
 end

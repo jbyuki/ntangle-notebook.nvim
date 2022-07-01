@@ -31,3 +31,5 @@ Output should be similar to this:
 * Connect with `lua require"ntangle-notebook".connect(SHELL_PORT, KEY)` where `SHELL_PORT` and `KEY` are taken from the connect infos.
 
 * Execute code with `lua require"ntangle-notebook".send_code([[print("hello world")]])`
+
+* Note: It's possible to specify the jupyter runtime directory in `g:ntangle_notebook_runtime_dir` so that the SHELL_PORT and KEY argument do not need to be provided. It will connect to the latest started kernel.
