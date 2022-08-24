@@ -33,3 +33,20 @@ Output should be similar to this:
 * Execute code with `lua require"ntangle-notebook".send_code([[print("hello world")]])`
 
 * Note: It's possible to specify the jupyter runtime directory in `g:ntangle_notebook_runtime_dir` so that the SHELL_PORT and KEY argument do not need to be provided. It will connect to the latest started kernel.
+
+Autoscroll
+----------
+
+There might be some issues with this. A definite solution was not found but changing in `qtconsole/console_widget.py`.
+
+```python
+should_autoscroll = self._viewport_at_end()
+```
+
+to 
+
+```python
+should_autoscroll = True # self._viewport_at_end()
+```
+
+gives a delayed autoscroll at least.
