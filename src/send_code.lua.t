@@ -82,8 +82,10 @@ data = data .. create_frame(content, false, false)
 function M.send_code(python_code)
   assert(client_co)
   code_content = python_code
+  request = "send_code"
   coroutine.resume(client_co)
 end
 
 @variables+=
 local code_content
+local request

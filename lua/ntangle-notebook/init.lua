@@ -4,9 +4,12 @@ local bit = require("bit")
 
 math.randomseed(os.time())
 
+local cursor_pos
+
 local msg_counter = 1
 
 local code_content
+local request
 local client_co
 
 local property_value
@@ -484,48 +487,92 @@ function M.connect(port_shell, key)
         vim.api.nvim_echo({{"Kernel Busy.", "ErrorMsg"}}, false, {})
       end
 
-      local data = create_frame("<IDS|MSG>", false, true)
+      if request == "send_code" then
+        local data = create_frame("<IDS|MSG>", false, true)
 
-      -- Looking at the existing front-end implementations
-      -- the msg id is just the session_uuid with a suffix
-      -- i'm just append a counter for simplicity
-      msg_uuid = session_uuid .. tostring(msg_counter)
+        -- Looking at the existing front-end implementations
+        -- the msg id is just the session_uuid with a suffix
+        -- i'm just append a counter for simplicity
+        msg_uuid = session_uuid .. tostring(msg_counter)
 
-      local header = vim.json.encode({
-        msg_id = msg_uuid,
-        session = session_uuid,
-        username = "username",
-        date = os.date("!%Y-%m-%dT%TZ"), -- iso 8601
-        msg_type = 'execute_request',
-        version = '5.3'
-      })
+        local header = vim.json.encode({
+          msg_id = msg_uuid,
+          session = session_uuid,
+          username = "username",
+          date = os.date("!%Y-%m-%dT%TZ"), -- iso 8601
+          msg_type = 'execute_request',
+          version = '5.3'
+        })
 
-      parent_header = "{}"
+        parent_header = "{}"
 
-      metadata = "{}"
+        metadata = "{}"
 
-      content = vim.json.encode({
-        code = code_content,
-        silent = false,
-        store_history = false,
-        user_expressions = {},
-        allow_stdin = false,
-        stop_on_error = false
-      })
+        content = vim.json.encode({
+          code = code_content,
+          silent = false,
+          store_history = false,
+          user_expressions = {},
+          allow_stdin = false,
+          stop_on_error = false
+        })
 
-      local hmac_code = M.hmac(key, header .. parent_header .. metadata .. content)
+        local hmac_code = M.hmac(key, header .. parent_header .. metadata .. content)
 
 
-      data = data .. create_frame(hmac_code, false, true)
-      data = data .. create_frame(header, false, true)
-      data = data .. create_frame(parent_header, false, true)
-      data = data .. create_frame(metadata, false, true)
-      data = data .. create_frame(content, false, false)
+        data = data .. create_frame(hmac_code, false, true)
+        data = data .. create_frame(header, false, true)
+        data = data .. create_frame(parent_header, false, true)
+        data = data .. create_frame(metadata, false, true)
+        data = data .. create_frame(content, false, false)
 
-      senddata(data)
+        senddata(data)
 
-      local response = read_frame(getdata)
-      vim.api.nvim_echo({{"Done.", "Normal"}}, false, {})
+        local response = read_frame(getdata)
+        vim.api.nvim_echo({{"Done.", "Normal"}}, false, {})
+      elseif request == "inspect" then
+        local data = create_frame("<IDS|MSG>", false, true)
+
+        -- Looking at the existing front-end implementations
+        -- the msg id is just the session_uuid with a suffix
+        -- i'm just append a counter for simplicity
+        msg_uuid = session_uuid .. tostring(msg_counter)
+
+        local header = vim.json.encode({
+          msg_id = msg_uuid,
+          session = session_uuid,
+          username = "username",
+          date = os.date("!%Y-%m-%dT%TZ"), -- iso 8601
+          msg_type = 'inspect_request',
+          version = '5.3'
+        })
+
+        parent_header = "{}"
+
+        metadata = "{}"
+
+        content = vim.json.encode({
+          code = code_content,
+          cursor_pos = cursor_pos,
+          detail_level = 0
+        })
+
+        local hmac_code = M.hmac(key, header .. parent_header .. metadata .. content)
+
+
+        data = data .. create_frame(hmac_code, false, true)
+        data = data .. create_frame(header, false, true)
+        data = data .. create_frame(parent_header, false, true)
+        data = data .. create_frame(metadata, false, true)
+        data = data .. create_frame(content, false, false)
+
+        senddata(data)
+
+        local response = read_frame(getdata)
+        print(vim.inspect(response))
+
+
+      end
     end
   end)
 
@@ -533,9 +580,18 @@ function M.connect(port_shell, key)
 
 end
 
+function M.inspect(python_code, pos)
+  assert(client_co)
+  code_content = python_code
+  request = "inspect"
+  cursor_pos = pos
+  coroutine.resume(client_co)
+end
+
 function M.send_code(python_code)
   assert(client_co)
   code_content = python_code
+  request = "send_code"
   coroutine.resume(client_co)
 end
 

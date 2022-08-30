@@ -18,8 +18,11 @@ client_co = coroutine.create(function(getdata, senddata)
   while true do
     coroutine.yield()
     @wait_for_kernel_idle
-    @send_code
-    @read_code_execute_replay
+    if request == "send_code" then
+      @send_code
+      @read_code_execute_replay
+    @handle_other_requests
+    end
   end
 end)
 
