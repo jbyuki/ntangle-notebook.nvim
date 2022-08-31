@@ -19,6 +19,8 @@ elseif request == "inspect" then
     @open_scratch_buffer_inspect
     @remove_ansi_escape_codes
     @enable_nabla_in_buffer
+    @set_cursor_top
+    @set_filetype_help
   else
     @print_not_found_message
   end
@@ -79,5 +81,13 @@ vim.api.nvim_echo({{"Not found.", "ErrorMsg"}}, false, {})
 vim.cmd [[%s/\e\[[0-9;]*m//g]]
 
 @enable_nabla_in_buffer+=
-require"nabla".enable_virt()
+require"nabla".enable_virt({
+  start_delim="\\f",
+  end_delim="\\f"
+})
 
+@set_cursor_top+=
+vim.api.nvim_win_set_cursor(0, {1, 0})
+
+@set_filetype_help+=
+vim.cmd [[set ft=help]]

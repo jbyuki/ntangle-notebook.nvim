@@ -587,8 +587,14 @@ function M.connect(port_shell, key)
 
           vim.cmd [[%s/\e\[[0-9;]*m//g]]
 
-          require"nabla".enable_virt()
+          require"nabla".enable_virt({
+            start_delim="\\f",
+            end_delim="\\f"
+          })
 
+          vim.api.nvim_win_set_cursor(0, {1, 0})
+
+          vim.cmd [[set ft=help]]
         else
           vim.api.nvim_echo({{"Not found.", "ErrorMsg"}}, false, {})
 
