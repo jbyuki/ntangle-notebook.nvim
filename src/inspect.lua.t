@@ -15,6 +15,13 @@ local cursor_pos
 elseif request == "inspect" then
   @inspect_code
   @read_inspect_replay
+  if found then
+    @open_scratch_buffer_inspect
+    @remove_ansi_escape_codes
+    @enable_nabla_in_buffer
+  else
+    @print_not_found_message
+  end
 
 @inspect_code+=
 local data = create_frame("<IDS|MSG>", false, true)
@@ -48,5 +55,29 @@ content = vim.json.encode({
 
 @read_inspect_replay+=
 local response = read_frame(getdata)
-print(vim.inspect(response))
+local content = response["content"]
+local data = vim.json.decode(content[6])
+local found = data["found"]
+
+@open_scratch_buffer_inspect+=
+local docstring = data["data"]["text/plain"]
+local lines = vim.split(docstring, "\n")
+
+vim.cmd [[to sp]]
+local buf = vim.api.nvim_create_buf(false, true)
+vim.api.nvim_set_current_buf(buf)
+
+vim.api.nvim_buf_set_lines(buf, 0, -1, true, lines)
+vim.api.nvim_buf_set_option(buf, "ft", "terminal") -- requires nvim-terminal.lua
+vim.api.nvim_set_option_value("concealcursor", "nc", { scope = "local"})
+
+@print_not_found_message+=
+vim.api.nvim_echo({{"Not found.", "ErrorMsg"}}, false, {})
+
+
+@remove_ansi_escape_codes+=
+vim.cmd [[%s/\e\[[0-9;]*m//g]]
+
+@enable_nabla_in_buffer+=
+require"nabla".enable_virt()
 

@@ -569,8 +569,31 @@ function M.connect(port_shell, key)
         senddata(data)
 
         local response = read_frame(getdata)
-        print(vim.inspect(response))
+        local content = response["content"]
+        local data = vim.json.decode(content[6])
+        local found = data["found"]
 
+        if found then
+          local docstring = data["data"]["text/plain"]
+          local lines = vim.split(docstring, "\n")
+
+          vim.cmd [[to sp]]
+          local buf = vim.api.nvim_create_buf(false, true)
+          vim.api.nvim_set_current_buf(buf)
+
+          vim.api.nvim_buf_set_lines(buf, 0, -1, true, lines)
+          vim.api.nvim_buf_set_option(buf, "ft", "terminal") -- requires nvim-terminal.lua
+          vim.api.nvim_set_option_value("concealcursor", "nc", { scope = "local"})
+
+          vim.cmd [[%s/\e\[[0-9;]*m//g]]
+
+          require"nabla".enable_virt()
+
+        else
+          vim.api.nvim_echo({{"Not found.", "ErrorMsg"}}, false, {})
+
+
+        end
 
       end
     end
@@ -586,6 +609,16 @@ function M.inspect(python_code, pos)
   request = "inspect"
   cursor_pos = pos
   coroutine.resume(client_co)
+end
+
+function M.inspect_ntangle()
+  local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+  pos = col+1
+
+
+  local line = vim.api.nvim_buf_get_lines(0, row-1, row, true)[1]
+
+  M.inspect(line, pos)
 end
 
 function M.send_code(python_code)
