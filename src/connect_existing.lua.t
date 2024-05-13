@@ -3,8 +3,7 @@
 if not port_shell or not key then
   if vim.g.ntangle_notebook_runtime_dir then
     @find_latest_kernel_json_file
-    @open_kernel_json_file
-    @get_shell_port_and_key
+		return
   end
 end
 
@@ -13,30 +12,57 @@ local files = vim.fn.glob(vim.g.ntangle_notebook_runtime_dir .. "/*")
 files = vim.split(files, "\n")
 local dates = {}
 
-for _, file in ipairs(files) do
+dates = {}
+indices = {}
+valid_files = {}
+
+for i, file in ipairs(files) do
   handle = vim.loop.fs_open(file, "r", 444)
-  if handle then
-    stat = vim.loop.fs_fstat(handle)
-    table.insert(dates, stat.mtime.sec)
-  else
-    table.insert(dates, 0)
+  if handle and vim.fn.fnamemodify(file, ":e") == "json" then
+		if vim.startswith( vim.fn.fnamemodify(file, ":t:r"), "kernel" ) then
+			stat = vim.loop.fs_fstat(handle)
+			table.insert(dates, stat.mtime.sec)
+			table.insert(valid_files, file)
+			table.insert(indices, #valid_files)
+		end
   end
 end
 
-local last = 1
-local last_modified = dates[1]
-local last_file = files[1]
-for i, file in ipairs(files) do
-  if last_modified < dates[i] then
-    last_modified = dates[i]
-    last_file = file
-  end
+@sort_by_dates
+
+assert(vim.tbl_count(indices) > 0)
+
+local selected_file
+if #indices > 0 then
+	selected_file = vim.ui.select(indices, {
+			prompt = "Select kernel: ",
+			format_item = function(idx)
+				local mdate = os.date("%d.%m.%Y %X", dates[idx])
+				local filename = vim.fn.fnamemodify(valid_files[idx], ":t:r")
+				return ("%s | %s"):format(mdate, filename)
+			end
+		}, 
+		function(choice)
+			if choice then
+				local selected_file = valid_files[choice]
+
+				@open_kernel_json_file
+				@get_shell_port_and_key
+
+				@send_code_coroutine_test
+				@connect_to_shell
+			end
+		end)
 end
+
+@sort_by_dates+=
+table.sort(indices, function(a,b) 
+	return dates[a] > dates[b]
+end)
 
 @open_kernel_json_file+=
-assert(last_file)
 local lines = {}
-for line in io.lines(last_file) do
+for line in io.lines(selected_file) do
   table.insert(lines, line)
 end
 
