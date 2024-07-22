@@ -11,6 +11,7 @@ local ntangle_code = table.concat(code, "\n")
 
 @defines+=
 function M.send_ntangle_visual()
+	vim.api.nvim_echo({{"Sending.", "Normal"}}, false, {})
   @get_code_content_at_current_section_visual
   M.send_code(ntangle_code)
 end

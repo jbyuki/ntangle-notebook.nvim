@@ -1067,6 +1067,7 @@ function M.send_ntangle()
 end
 
 function M.send_ntangle_visual()
+	vim.api.nvim_echo({{"Sending.", "Normal"}}, false, {})
   local code = require"ntangle".get_code_at_vrange()
   local ntangle_code = table.concat(code, "\n")
   M.send_code(ntangle_code)
