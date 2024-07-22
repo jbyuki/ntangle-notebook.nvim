@@ -33,7 +33,7 @@ end
 assert(vim.tbl_count(indices) > 0)
 
 local selected_file
-if #indices > 0 then
+if #indices > 1 then
 	selected_file = vim.ui.select(indices, {
 			prompt = "Select kernel: ",
 			format_item = function(idx)
@@ -53,6 +53,16 @@ if #indices > 0 then
 				@connect_to_shell
 			end
 		end)
+elseif #indices == 1 then
+	local selected_file = valid_files[indices[1]]
+
+	@open_kernel_json_file
+	@get_shell_port_and_key
+
+	@send_code_coroutine_test
+	@connect_to_shell
+else
+	print("No running kernel.")
 end
 
 @sort_by_dates+=

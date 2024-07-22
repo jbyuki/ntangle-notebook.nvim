@@ -404,7 +404,7 @@ function M.connect(port_shell, key)
       assert(vim.tbl_count(indices) > 0)
 
       local selected_file
-      if #indices > 0 then
+      if #indices > 1 then
       	selected_file = vim.ui.select(indices, {
       			prompt = "Select kernel: ",
       			format_item = function(idx)
@@ -623,6 +623,215 @@ function M.connect(port_shell, key)
       				
       			end
       		end)
+      elseif #indices == 1 then
+      	local selected_file = valid_files[indices[1]]
+
+      	local lines = {}
+      	for line in io.lines(selected_file) do
+      	  table.insert(lines, line)
+      	end
+
+      	local decoded = vim.json.decode(table.concat(lines, "\n"))
+
+      	port_shell = tonumber(decoded["shell_port"])
+      	key = decoded["key"]
+
+      	client_co = coroutine.create(function(getdata, senddata)
+      	  local greeting = string.char(0xFF) .. ("\0"):rep(8) .. string.char(0x7F)
+      	  senddata(greeting)
+      	  
+      	  getdata(11)
+      	  
+      	  local rest_greeting = string.char(0x03) .. string.char(0x01) .. "NULL" .. ("\0"):rep(16+1+31)
+      	  senddata(rest_greeting)
+      	  
+      	  getdata(64-11)
+      	  
+      	  local data = string.char(0x5) .. "READY" 
+      	  data = data .. property_value("Socket-Type", "DEALER")
+      	  data = data .. property_value("Identity", "")
+      	  senddata(create_frame(data, true))
+      	  
+      	  local ready = read_frame(getdata)
+      	  vim.api.nvim_echo({{"Ready.", "Normal"}}, false, {})
+      	  
+      	  session_uuid = generate_uuid()
+      	  
+      	  while true do
+      	    coroutine.yield()
+      	    while true do
+      	      local data = create_frame("<IDS|MSG>", false, true)
+      	      
+      	      -- Looking at the existing front-end implementations
+      	      -- the msg id is just the session_uuid with a suffix
+      	      -- i'm just append a counter for simplicity
+      	      msg_uuid = session_uuid .. tostring(msg_counter)
+      	      
+      	      local header = vim.json.encode({
+      	        msg_id = msg_uuid,
+      	        session = session_uuid,
+      	        username = "username",
+      	        date = os.date("!%Y-%m-%dT%TZ"), -- iso 8601
+      	        msg_type = 'is_complete_request',
+      	        version = '5.3'
+      	      })
+      	      
+      	      parent_header = "{}"
+      	      
+      	      metadata = "{}"
+      	      
+      	      content = vim.json.encode({
+      	        code = "",
+      	        silent = false,
+      	        store_history = true,
+      	        user_expressions = {},
+      	        allow_stdin = false,
+      	        stop_on_error = false
+      	      })
+      	      
+      	      local hmac_code = M.hmac(key, header .. parent_header .. metadata .. content)
+      	      
+      	      
+      	      data = data .. create_frame(hmac_code, false, true)
+      	      data = data .. create_frame(header, false, true)
+      	      data = data .. create_frame(parent_header, false, true)
+      	      data = data .. create_frame(metadata, false, true)
+      	      data = data .. create_frame(content, false, false)
+      	      
+      	      senddata(data)
+      	      
+      	      local response = read_frame(getdata)
+      	      local decoded = vim.json.decode(response.content[6])
+      	      
+      	      if decoded.status == "complete" then
+      	        break
+      	      end
+      	      
+      	      vim.api.nvim_echo({{"Kernel Busy.", "ErrorMsg"}}, false, {})
+      	    end
+      	    
+      	    if request == "send_code" then
+      	      local data = create_frame("<IDS|MSG>", false, true)
+      	      
+      	      -- Looking at the existing front-end implementations
+      	      -- the msg id is just the session_uuid with a suffix
+      	      -- i'm just append a counter for simplicity
+      	      msg_uuid = session_uuid .. tostring(msg_counter)
+      	      
+      	      local header = vim.json.encode({
+      	        msg_id = msg_uuid,
+      	        session = session_uuid,
+      	        username = "username",
+      	        date = os.date("!%Y-%m-%dT%TZ"), -- iso 8601
+      	        msg_type = 'execute_request',
+      	        version = '5.3'
+      	      })
+      	      
+      	      parent_header = "{}"
+      	      
+      	      metadata = "{}"
+      	      
+      	      content = vim.json.encode({
+      	        code = code_content,
+      	        silent = false,
+      	        store_history = false,
+      	        user_expressions = {},
+      	        allow_stdin = false,
+      	        stop_on_error = false
+      	      })
+      	      
+      	      local hmac_code = M.hmac(key, header .. parent_header .. metadata .. content)
+      	      
+      	      
+      	      data = data .. create_frame(hmac_code, false, true)
+      	      data = data .. create_frame(header, false, true)
+      	      data = data .. create_frame(parent_header, false, true)
+      	      data = data .. create_frame(metadata, false, true)
+      	      data = data .. create_frame(content, false, false)
+      	      
+      	      senddata(data)
+      	      
+      	      local response = read_frame(getdata)
+      	      vim.api.nvim_echo({{"Done.", "Normal"}}, false, {})
+      	    elseif request == "inspect" then
+      	      local data = create_frame("<IDS|MSG>", false, true)
+      	      
+      	      -- Looking at the existing front-end implementations
+      	      -- the msg id is just the session_uuid with a suffix
+      	      -- i'm just append a counter for simplicity
+      	      msg_uuid = session_uuid .. tostring(msg_counter)
+      	      
+      	      local header = vim.json.encode({
+      	        msg_id = msg_uuid,
+      	        session = session_uuid,
+      	        username = "username",
+      	        date = os.date("!%Y-%m-%dT%TZ"), -- iso 8601
+      	        msg_type = 'inspect_request',
+      	        version = '5.3'
+      	      })
+      	      
+      	      parent_header = "{}"
+      	      
+      	      metadata = "{}"
+      	      
+      	      content = vim.json.encode({
+      	        code = code_content,
+      	        cursor_pos = cursor_pos,
+      	        detail_level = 0
+      	      })
+      	      
+      	      local hmac_code = M.hmac(key, header .. parent_header .. metadata .. content)
+      	      
+      	      
+      	      data = data .. create_frame(hmac_code, false, true)
+      	      data = data .. create_frame(header, false, true)
+      	      data = data .. create_frame(parent_header, false, true)
+      	      data = data .. create_frame(metadata, false, true)
+      	      data = data .. create_frame(content, false, false)
+      	      
+      	      senddata(data)
+      	      
+      	      local response = read_frame(getdata)
+      	      local content = response["content"]
+      	      local data = vim.json.decode(content[6])
+      	      local found = data["found"]
+      	      
+      	      if found then
+      	        local docstring = data["data"]["text/plain"]
+      	        local lines = vim.split(docstring, "\n")
+      	        
+      	        vim.cmd [[to sp]]
+      	        local buf = vim.api.nvim_create_buf(false, true)
+      	        vim.api.nvim_set_current_buf(buf)
+      	        
+      	        vim.api.nvim_buf_set_lines(buf, 0, -1, true, lines)
+      	        vim.api.nvim_buf_set_option(buf, "ft", "terminal") -- requires nvim-terminal.lua
+      	        vim.api.nvim_set_option_value("concealcursor", "nc", { scope = "local"})
+      	        
+      	        vim.cmd [[%s/\e\[[0-9;]*m//g]]
+      	        
+      	        require"nabla".enable_virt({
+      	          start_delim="\\f",
+      	          end_delim="\\f"
+      	        })
+      	        
+      	        vim.api.nvim_win_set_cursor(0, {1, 0})
+      	        
+      	        vim.cmd [[set ft=help]]
+      	      else
+      	        vim.api.nvim_echo({{"Not found.", "ErrorMsg"}}, false, {})
+      	        
+      	        
+      	      end
+      	    
+      	    end
+      	  end
+      	end)
+      	
+      	create_client(port_shell, client_co)
+      	
+      else
+      	print("No running kernel.")
       end
 
   		return
