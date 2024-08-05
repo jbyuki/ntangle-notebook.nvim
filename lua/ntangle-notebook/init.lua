@@ -78,21 +78,21 @@ function create_frame(data, is_command, has_more)
   if len >= 256 then
     flag = flag + 0x2
   end
-  
+
   if is_command then
     flag = flag + 0x4
   end
-  
+
   if has_more then
     flag = flag + 0x1
   end
-  
+
   if len < 256 then
     size = string.char(len)
   else
     size = num2bytes(len, 8)
   end
-  
+
   return string.char(flag) .. size .. data
 end
 
@@ -114,35 +114,35 @@ function M.hmac(key, msg)
 
   key = str2tbl(key)
   msg = str2tbl(msg)
-  
+
 
   if #key > B then
     key_padded = M.sha256(key)
   else
     key_padded = vim.deepcopy(key)
-  
+
     for i=1,B-#key do
       table.insert(key_padded, 0)
     end
   end
-  
+
   local ipad = {}
   for i=1,B do
     table.insert(ipad, 0x36)
   end
-  
+
   local opad = {}
   for i=1,B do
     table.insert(opad, 0x5c)
   end
-  
+
   local xored = xor_all(key_padded, ipad)
   vim.list_extend(xored, msg)
   local rhs = M.sha256(xored)
   local lhs = xor_all(key_padded, opad)
   vim.list_extend(lhs, rhs)
   local result = M.sha256(lhs)
-  
+
   local hexstr = ""
   for i=1,#result do
     hexstr = hexstr .. string.format("%02x", result[i])
@@ -185,7 +185,7 @@ function read_frame(getdata)
     else
       size = bytes2num(getdata(8))
     end
-    
+
     table.insert(frame.content, getdata(size))
 
     if not has_more then
@@ -220,24 +220,24 @@ function M.sha256(bytes)
   local bytes = vim.deepcopy(bytes)
 	local len = {}
 	local bytes_len = #bytes*8
-	
+
 	for i=1,8 do
 		table.insert(len, bit.band(bytes_len, 0xFF))
 		bytes_len = bit.rshift(bytes_len, 8)
 	end
-	
+
   table.insert(bytes, 0x80)
-  
+
 	local remain = (64 - ((#bytes+8) % 64)) % 64
 	for i=64-remain+1,64 do
 	  table.insert(bytes, 0)
 	end
-	
+
 	for i=1,8 do
 	  table.insert(bytes, len[8-i+1])
 	end
-	
-	
+
+
 	local H = {
 	  0x6A09E667,
 	  0xBB67AE85,
@@ -248,7 +248,7 @@ function M.sha256(bytes)
 	  0x1F83D9AB,
 	  0x5BE0CD19
 	}
-	
+
 	local W = {}
 	for i = 1,#bytes,64 do
 		for j=0,15 do
@@ -256,21 +256,21 @@ function M.sha256(bytes)
 		    bytes[i+4*j+0], bytes[i+4*j+1], 
 		    bytes[i+4*j+2], bytes[i+4*j+3])
 		end
-		
+
 		for t=16,63 do
 		  W[t] = SSIG1(W[t-2]) + W[t-7] + SSIG0(W[t-15]) + W[t-16]
 		end
-		
+
 		local a, b, c, d, e, f, g, h = unpack(H)
-		
+
 		for t=0,63 do
 		  local T1 = bit.band(h + BSIG1(e) + CH(e,f,g) + K[t+1] + W[t], 0xFFFFFFFF)
-		
+
 		  local T2 = bit.band(BSIG0(a) + MAJ(a,b,c), 0xFFFFFFFF)
 		  h = g   g = f  f = e   e = bit.band(d + T1, 0xFFFFFFFF)
 		  d = c   c = b  b = a   a = bit.band(T1 + T2, 0xFFFFFFFF)
 		end
-		
+
 		H[1] = H[1]+a
 		H[2] = H[2]+b
 		H[3] = H[3]+c
@@ -279,9 +279,9 @@ function M.sha256(bytes)
 		H[6] = H[6]+f
 		H[7] = H[7]+g
 		H[8] = H[8]+h
-		
+
 	end
-	
+
 	local digest = {}
 	for i=1,8 do
 		table.insert(digest, bit.band(bit.rshift(H[i], 24), 0xFF))
@@ -323,12 +323,12 @@ end
 
 local function create_client(port, co)
   local client = vim.loop.new_tcp()
-  
+
   client:connect("127.0.0.1", port, vim.schedule_wrap(function(err)
     assert(not err, err)
-    
+
     local chunk_buffer = ""
-    
+
     local function getdata(amount)
       if amount then
         while string.len(chunk_buffer) < amount do
@@ -340,36 +340,36 @@ local function create_client(port, co)
         end
         amount = chunk_buffer:find("\0")
       end
-    
+
     	local retrieved = string.sub(chunk_buffer, 1, amount)
     	chunk_buffer = string.sub(chunk_buffer, amount+1)
     	return retrieved
     end
-    
+
     local function senddata(bytes)
       client:write(bytes)
     end
-    
+
     coroutine.resume(co, getdata, senddata)
-    
-  
+
+
     client:read_start(vim.schedule_wrap(function(err, chunk)
       assert(not err, err)
-      
+
       if coroutine.status(co) == "dead" then
         client:close()
         return
       end
-      
-  
+
+
       if chunk then
         chunk_buffer = chunk_buffer .. chunk
         coroutine.resume(co)
-        
+
       end
     end))
   end))
-  
+
   return client
 end
 
@@ -430,34 +430,34 @@ function M.connect(port_shell, key)
       				client_co = coroutine.create(function(getdata, senddata)
       				  local greeting = string.char(0xFF) .. ("\0"):rep(8) .. string.char(0x7F)
       				  senddata(greeting)
-      				  
+
       				  getdata(11)
-      				  
+
       				  local rest_greeting = string.char(0x03) .. string.char(0x01) .. "NULL" .. ("\0"):rep(16+1+31)
       				  senddata(rest_greeting)
-      				  
+
       				  getdata(64-11)
-      				  
+
       				  local data = string.char(0x5) .. "READY" 
       				  data = data .. property_value("Socket-Type", "DEALER")
       				  data = data .. property_value("Identity", "")
       				  senddata(create_frame(data, true))
-      				  
+
       				  local ready = read_frame(getdata)
       				  vim.api.nvim_echo({{"Ready.", "Normal"}}, false, {})
-      				  
+
       				  session_uuid = generate_uuid()
-      				  
+
       				  while true do
       				    coroutine.yield()
       				    while true do
       				      local data = create_frame("<IDS|MSG>", false, true)
-      				      
+
       				      -- Looking at the existing front-end implementations
       				      -- the msg id is just the session_uuid with a suffix
       				      -- i'm just append a counter for simplicity
       				      msg_uuid = session_uuid .. tostring(msg_counter)
-      				      
+
       				      local header = vim.json.encode({
       				        msg_id = msg_uuid,
       				        session = session_uuid,
@@ -466,11 +466,11 @@ function M.connect(port_shell, key)
       				        msg_type = 'is_complete_request',
       				        version = '5.3'
       				      })
-      				      
+
       				      parent_header = "{}"
-      				      
+
       				      metadata = "{}"
-      				      
+
       				      content = vim.json.encode({
       				        code = "",
       				        silent = false,
@@ -479,36 +479,36 @@ function M.connect(port_shell, key)
       				        allow_stdin = false,
       				        stop_on_error = false
       				      })
-      				      
+
       				      local hmac_code = M.hmac(key, header .. parent_header .. metadata .. content)
-      				      
-      				      
+
+
       				      data = data .. create_frame(hmac_code, false, true)
       				      data = data .. create_frame(header, false, true)
       				      data = data .. create_frame(parent_header, false, true)
       				      data = data .. create_frame(metadata, false, true)
       				      data = data .. create_frame(content, false, false)
-      				      
+
       				      senddata(data)
-      				      
+
       				      local response = read_frame(getdata)
       				      local decoded = vim.json.decode(response.content[6])
-      				      
+
       				      if decoded.status == "complete" then
       				        break
       				      end
-      				      
+
       				      vim.api.nvim_echo({{"Kernel Busy.", "ErrorMsg"}}, false, {})
       				    end
-      				    
+
       				    if request == "send_code" then
       				      local data = create_frame("<IDS|MSG>", false, true)
-      				      
+
       				      -- Looking at the existing front-end implementations
       				      -- the msg id is just the session_uuid with a suffix
       				      -- i'm just append a counter for simplicity
       				      msg_uuid = session_uuid .. tostring(msg_counter)
-      				      
+
       				      local header = vim.json.encode({
       				        msg_id = msg_uuid,
       				        session = session_uuid,
@@ -517,11 +517,11 @@ function M.connect(port_shell, key)
       				        msg_type = 'execute_request',
       				        version = '5.3'
       				      })
-      				      
+
       				      parent_header = "{}"
-      				      
+
       				      metadata = "{}"
-      				      
+
       				      content = vim.json.encode({
       				        code = code_content,
       				        silent = false,
@@ -530,28 +530,28 @@ function M.connect(port_shell, key)
       				        allow_stdin = false,
       				        stop_on_error = false
       				      })
-      				      
+
       				      local hmac_code = M.hmac(key, header .. parent_header .. metadata .. content)
-      				      
-      				      
+
+
       				      data = data .. create_frame(hmac_code, false, true)
       				      data = data .. create_frame(header, false, true)
       				      data = data .. create_frame(parent_header, false, true)
       				      data = data .. create_frame(metadata, false, true)
       				      data = data .. create_frame(content, false, false)
-      				      
+
       				      senddata(data)
-      				      
+
       				      local response = read_frame(getdata)
       				      vim.api.nvim_echo({{"Done.", "Normal"}}, false, {})
       				    elseif request == "inspect" then
       				      local data = create_frame("<IDS|MSG>", false, true)
-      				      
+
       				      -- Looking at the existing front-end implementations
       				      -- the msg id is just the session_uuid with a suffix
       				      -- i'm just append a counter for simplicity
       				      msg_uuid = session_uuid .. tostring(msg_counter)
-      				      
+
       				      local header = vim.json.encode({
       				        msg_id = msg_uuid,
       				        session = session_uuid,
@@ -560,67 +560,67 @@ function M.connect(port_shell, key)
       				        msg_type = 'inspect_request',
       				        version = '5.3'
       				      })
-      				      
+
       				      parent_header = "{}"
-      				      
+
       				      metadata = "{}"
-      				      
+
       				      content = vim.json.encode({
       				        code = code_content,
       				        cursor_pos = cursor_pos,
       				        detail_level = 0
       				      })
-      				      
+
       				      local hmac_code = M.hmac(key, header .. parent_header .. metadata .. content)
-      				      
-      				      
+
+
       				      data = data .. create_frame(hmac_code, false, true)
       				      data = data .. create_frame(header, false, true)
       				      data = data .. create_frame(parent_header, false, true)
       				      data = data .. create_frame(metadata, false, true)
       				      data = data .. create_frame(content, false, false)
-      				      
+
       				      senddata(data)
-      				      
+
       				      local response = read_frame(getdata)
       				      local content = response["content"]
       				      local data = vim.json.decode(content[6])
       				      local found = data["found"]
-      				      
+
       				      if found then
       				        local docstring = data["data"]["text/plain"]
       				        local lines = vim.split(docstring, "\n")
-      				        
+
       				        vim.cmd [[to sp]]
       				        local buf = vim.api.nvim_create_buf(false, true)
       				        vim.api.nvim_set_current_buf(buf)
-      				        
+
       				        vim.api.nvim_buf_set_lines(buf, 0, -1, true, lines)
       				        vim.api.nvim_buf_set_option(buf, "ft", "terminal") -- requires nvim-terminal.lua
       				        vim.api.nvim_set_option_value("concealcursor", "nc", { scope = "local"})
-      				        
+
       				        vim.cmd [[%s/\e\[[0-9;]*m//g]]
-      				        
+
       				        require"nabla".enable_virt({
       				          start_delim="\\f",
       				          end_delim="\\f"
       				        })
-      				        
+
       				        vim.api.nvim_win_set_cursor(0, {1, 0})
-      				        
+
       				        vim.cmd [[set ft=help]]
       				      else
       				        vim.api.nvim_echo({{"Not found.", "ErrorMsg"}}, false, {})
-      				        
-      				        
+
+
       				      end
-      				    
+
       				    end
       				  end
       				end)
-      				
+
       				create_client(port_shell, client_co)
-      				
+
       			end
       		end)
       elseif #indices == 1 then
@@ -639,34 +639,34 @@ function M.connect(port_shell, key)
       	client_co = coroutine.create(function(getdata, senddata)
       	  local greeting = string.char(0xFF) .. ("\0"):rep(8) .. string.char(0x7F)
       	  senddata(greeting)
-      	  
+
       	  getdata(11)
-      	  
+
       	  local rest_greeting = string.char(0x03) .. string.char(0x01) .. "NULL" .. ("\0"):rep(16+1+31)
       	  senddata(rest_greeting)
-      	  
+
       	  getdata(64-11)
-      	  
+
       	  local data = string.char(0x5) .. "READY" 
       	  data = data .. property_value("Socket-Type", "DEALER")
       	  data = data .. property_value("Identity", "")
       	  senddata(create_frame(data, true))
-      	  
+
       	  local ready = read_frame(getdata)
       	  vim.api.nvim_echo({{"Ready.", "Normal"}}, false, {})
-      	  
+
       	  session_uuid = generate_uuid()
-      	  
+
       	  while true do
       	    coroutine.yield()
       	    while true do
       	      local data = create_frame("<IDS|MSG>", false, true)
-      	      
+
       	      -- Looking at the existing front-end implementations
       	      -- the msg id is just the session_uuid with a suffix
       	      -- i'm just append a counter for simplicity
       	      msg_uuid = session_uuid .. tostring(msg_counter)
-      	      
+
       	      local header = vim.json.encode({
       	        msg_id = msg_uuid,
       	        session = session_uuid,
@@ -675,11 +675,11 @@ function M.connect(port_shell, key)
       	        msg_type = 'is_complete_request',
       	        version = '5.3'
       	      })
-      	      
+
       	      parent_header = "{}"
-      	      
+
       	      metadata = "{}"
-      	      
+
       	      content = vim.json.encode({
       	        code = "",
       	        silent = false,
@@ -688,36 +688,36 @@ function M.connect(port_shell, key)
       	        allow_stdin = false,
       	        stop_on_error = false
       	      })
-      	      
+
       	      local hmac_code = M.hmac(key, header .. parent_header .. metadata .. content)
-      	      
-      	      
+
+
       	      data = data .. create_frame(hmac_code, false, true)
       	      data = data .. create_frame(header, false, true)
       	      data = data .. create_frame(parent_header, false, true)
       	      data = data .. create_frame(metadata, false, true)
       	      data = data .. create_frame(content, false, false)
-      	      
+
       	      senddata(data)
-      	      
+
       	      local response = read_frame(getdata)
       	      local decoded = vim.json.decode(response.content[6])
-      	      
+
       	      if decoded.status == "complete" then
       	        break
       	      end
-      	      
+
       	      vim.api.nvim_echo({{"Kernel Busy.", "ErrorMsg"}}, false, {})
       	    end
-      	    
+
       	    if request == "send_code" then
       	      local data = create_frame("<IDS|MSG>", false, true)
-      	      
+
       	      -- Looking at the existing front-end implementations
       	      -- the msg id is just the session_uuid with a suffix
       	      -- i'm just append a counter for simplicity
       	      msg_uuid = session_uuid .. tostring(msg_counter)
-      	      
+
       	      local header = vim.json.encode({
       	        msg_id = msg_uuid,
       	        session = session_uuid,
@@ -726,11 +726,11 @@ function M.connect(port_shell, key)
       	        msg_type = 'execute_request',
       	        version = '5.3'
       	      })
-      	      
+
       	      parent_header = "{}"
-      	      
+
       	      metadata = "{}"
-      	      
+
       	      content = vim.json.encode({
       	        code = code_content,
       	        silent = false,
@@ -739,28 +739,28 @@ function M.connect(port_shell, key)
       	        allow_stdin = false,
       	        stop_on_error = false
       	      })
-      	      
+
       	      local hmac_code = M.hmac(key, header .. parent_header .. metadata .. content)
-      	      
-      	      
+
+
       	      data = data .. create_frame(hmac_code, false, true)
       	      data = data .. create_frame(header, false, true)
       	      data = data .. create_frame(parent_header, false, true)
       	      data = data .. create_frame(metadata, false, true)
       	      data = data .. create_frame(content, false, false)
-      	      
+
       	      senddata(data)
-      	      
+
       	      local response = read_frame(getdata)
       	      vim.api.nvim_echo({{"Done.", "Normal"}}, false, {})
       	    elseif request == "inspect" then
       	      local data = create_frame("<IDS|MSG>", false, true)
-      	      
+
       	      -- Looking at the existing front-end implementations
       	      -- the msg id is just the session_uuid with a suffix
       	      -- i'm just append a counter for simplicity
       	      msg_uuid = session_uuid .. tostring(msg_counter)
-      	      
+
       	      local header = vim.json.encode({
       	        msg_id = msg_uuid,
       	        session = session_uuid,
@@ -769,67 +769,67 @@ function M.connect(port_shell, key)
       	        msg_type = 'inspect_request',
       	        version = '5.3'
       	      })
-      	      
+
       	      parent_header = "{}"
-      	      
+
       	      metadata = "{}"
-      	      
+
       	      content = vim.json.encode({
       	        code = code_content,
       	        cursor_pos = cursor_pos,
       	        detail_level = 0
       	      })
-      	      
+
       	      local hmac_code = M.hmac(key, header .. parent_header .. metadata .. content)
-      	      
-      	      
+
+
       	      data = data .. create_frame(hmac_code, false, true)
       	      data = data .. create_frame(header, false, true)
       	      data = data .. create_frame(parent_header, false, true)
       	      data = data .. create_frame(metadata, false, true)
       	      data = data .. create_frame(content, false, false)
-      	      
+
       	      senddata(data)
-      	      
+
       	      local response = read_frame(getdata)
       	      local content = response["content"]
       	      local data = vim.json.decode(content[6])
       	      local found = data["found"]
-      	      
+
       	      if found then
       	        local docstring = data["data"]["text/plain"]
       	        local lines = vim.split(docstring, "\n")
-      	        
+
       	        vim.cmd [[to sp]]
       	        local buf = vim.api.nvim_create_buf(false, true)
       	        vim.api.nvim_set_current_buf(buf)
-      	        
+
       	        vim.api.nvim_buf_set_lines(buf, 0, -1, true, lines)
       	        vim.api.nvim_buf_set_option(buf, "ft", "terminal") -- requires nvim-terminal.lua
       	        vim.api.nvim_set_option_value("concealcursor", "nc", { scope = "local"})
-      	        
+
       	        vim.cmd [[%s/\e\[[0-9;]*m//g]]
-      	        
+
       	        require"nabla".enable_virt({
       	          start_delim="\\f",
       	          end_delim="\\f"
       	        })
-      	        
+
       	        vim.api.nvim_win_set_cursor(0, {1, 0})
-      	        
+
       	        vim.cmd [[set ft=help]]
       	      else
       	        vim.api.nvim_echo({{"Not found.", "ErrorMsg"}}, false, {})
-      	        
-      	        
+
+
       	      end
-      	    
+
       	    end
       	  end
       	end)
-      	
+
       	create_client(port_shell, client_co)
-      	
+
       else
       	print("No running kernel.")
       end
@@ -841,34 +841,34 @@ function M.connect(port_shell, key)
   client_co = coroutine.create(function(getdata, senddata)
     local greeting = string.char(0xFF) .. ("\0"):rep(8) .. string.char(0x7F)
     senddata(greeting)
-    
+
     getdata(11)
-    
+
     local rest_greeting = string.char(0x03) .. string.char(0x01) .. "NULL" .. ("\0"):rep(16+1+31)
     senddata(rest_greeting)
-    
+
     getdata(64-11)
-    
+
     local data = string.char(0x5) .. "READY" 
     data = data .. property_value("Socket-Type", "DEALER")
     data = data .. property_value("Identity", "")
     senddata(create_frame(data, true))
-    
+
     local ready = read_frame(getdata)
     vim.api.nvim_echo({{"Ready.", "Normal"}}, false, {})
-    
+
     session_uuid = generate_uuid()
-    
+
     while true do
       coroutine.yield()
       while true do
         local data = create_frame("<IDS|MSG>", false, true)
-        
+
         -- Looking at the existing front-end implementations
         -- the msg id is just the session_uuid with a suffix
         -- i'm just append a counter for simplicity
         msg_uuid = session_uuid .. tostring(msg_counter)
-        
+
         local header = vim.json.encode({
           msg_id = msg_uuid,
           session = session_uuid,
@@ -877,11 +877,11 @@ function M.connect(port_shell, key)
           msg_type = 'is_complete_request',
           version = '5.3'
         })
-        
+
         parent_header = "{}"
-        
+
         metadata = "{}"
-        
+
         content = vim.json.encode({
           code = "",
           silent = false,
@@ -890,36 +890,36 @@ function M.connect(port_shell, key)
           allow_stdin = false,
           stop_on_error = false
         })
-        
+
         local hmac_code = M.hmac(key, header .. parent_header .. metadata .. content)
-        
-        
+
+
         data = data .. create_frame(hmac_code, false, true)
         data = data .. create_frame(header, false, true)
         data = data .. create_frame(parent_header, false, true)
         data = data .. create_frame(metadata, false, true)
         data = data .. create_frame(content, false, false)
-        
+
         senddata(data)
-        
+
         local response = read_frame(getdata)
         local decoded = vim.json.decode(response.content[6])
-        
+
         if decoded.status == "complete" then
           break
         end
-        
+
         vim.api.nvim_echo({{"Kernel Busy.", "ErrorMsg"}}, false, {})
       end
-      
+
       if request == "send_code" then
         local data = create_frame("<IDS|MSG>", false, true)
-        
+
         -- Looking at the existing front-end implementations
         -- the msg id is just the session_uuid with a suffix
         -- i'm just append a counter for simplicity
         msg_uuid = session_uuid .. tostring(msg_counter)
-        
+
         local header = vim.json.encode({
           msg_id = msg_uuid,
           session = session_uuid,
@@ -928,11 +928,11 @@ function M.connect(port_shell, key)
           msg_type = 'execute_request',
           version = '5.3'
         })
-        
+
         parent_header = "{}"
-        
+
         metadata = "{}"
-        
+
         content = vim.json.encode({
           code = code_content,
           silent = false,
@@ -941,28 +941,28 @@ function M.connect(port_shell, key)
           allow_stdin = false,
           stop_on_error = false
         })
-        
+
         local hmac_code = M.hmac(key, header .. parent_header .. metadata .. content)
-        
-        
+
+
         data = data .. create_frame(hmac_code, false, true)
         data = data .. create_frame(header, false, true)
         data = data .. create_frame(parent_header, false, true)
         data = data .. create_frame(metadata, false, true)
         data = data .. create_frame(content, false, false)
-        
+
         senddata(data)
-        
+
         local response = read_frame(getdata)
         vim.api.nvim_echo({{"Done.", "Normal"}}, false, {})
       elseif request == "inspect" then
         local data = create_frame("<IDS|MSG>", false, true)
-        
+
         -- Looking at the existing front-end implementations
         -- the msg id is just the session_uuid with a suffix
         -- i'm just append a counter for simplicity
         msg_uuid = session_uuid .. tostring(msg_counter)
-        
+
         local header = vim.json.encode({
           msg_id = msg_uuid,
           session = session_uuid,
@@ -971,67 +971,67 @@ function M.connect(port_shell, key)
           msg_type = 'inspect_request',
           version = '5.3'
         })
-        
+
         parent_header = "{}"
-        
+
         metadata = "{}"
-        
+
         content = vim.json.encode({
           code = code_content,
           cursor_pos = cursor_pos,
           detail_level = 0
         })
-        
+
         local hmac_code = M.hmac(key, header .. parent_header .. metadata .. content)
-        
-        
+
+
         data = data .. create_frame(hmac_code, false, true)
         data = data .. create_frame(header, false, true)
         data = data .. create_frame(parent_header, false, true)
         data = data .. create_frame(metadata, false, true)
         data = data .. create_frame(content, false, false)
-        
+
         senddata(data)
-        
+
         local response = read_frame(getdata)
         local content = response["content"]
         local data = vim.json.decode(content[6])
         local found = data["found"]
-        
+
         if found then
           local docstring = data["data"]["text/plain"]
           local lines = vim.split(docstring, "\n")
-          
+
           vim.cmd [[to sp]]
           local buf = vim.api.nvim_create_buf(false, true)
           vim.api.nvim_set_current_buf(buf)
-          
+
           vim.api.nvim_buf_set_lines(buf, 0, -1, true, lines)
           vim.api.nvim_buf_set_option(buf, "ft", "terminal") -- requires nvim-terminal.lua
           vim.api.nvim_set_option_value("concealcursor", "nc", { scope = "local"})
-          
+
           vim.cmd [[%s/\e\[[0-9;]*m//g]]
-          
+
           require"nabla".enable_virt({
             start_delim="\\f",
             end_delim="\\f"
           })
-          
+
           vim.api.nvim_win_set_cursor(0, {1, 0})
-          
+
           vim.cmd [[set ft=help]]
         else
           vim.api.nvim_echo({{"Not found.", "ErrorMsg"}}, false, {})
-          
-          
+
+
         end
-      
+
       end
     end
   end)
-  
+
   create_client(port_shell, client_co)
-  
+
 end
 
 function M.inspect(python_code, pos)
@@ -1045,10 +1045,10 @@ end
 function M.inspect_ntangle()
   local row, col = unpack(vim.api.nvim_win_get_cursor(0))
   pos = col+1
-  
-  
+
+
   local line = vim.api.nvim_buf_get_lines(0, row-1, row, true)[1]
-  
+
   M.inspect(line, pos)
 end
 
@@ -1062,7 +1062,7 @@ end
 function M.send_ntangle()
   local code = require"ntangle".get_code_at_cursor()
   local ntangle_code = table.concat(code, "\n")
-  
+
   M.send_code(ntangle_code)
 end
 
@@ -1070,6 +1070,65 @@ function M.send_ntangle_visual()
 	vim.api.nvim_echo({{"Sending.", "Normal"}}, false, {})
   local code = require"ntangle".get_code_at_vrange()
   local ntangle_code = table.concat(code, "\n")
+  M.send_code(ntangle_code)
+end
+
+function M.send_ntangle_v2()
+	local found, ntangle_inc = pcall(require, "ntangle-inc")
+	assert(found)
+
+	local buf = vim.api.nvim_get_current_buf()
+	local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+
+	local lines = {}
+	local lnum = row-1
+	local hl_elem = ntangle_inc.Tto_hl_elem(buf, lnum)
+	if hl_elem then
+		local Tangle = require"vim.tangle"
+		local ll = Tangle.get_ll_from_buf(buf)
+		assert(ll)
+		local hl = Tangle.get_hl_from_ll(ll)
+		assert(hl)
+
+		lines = hl:getlines_all(hl_elem, lines)
+	end
+
+
+	local ntangle_code = table.concat(lines, "\n")
+
+  M.send_code(ntangle_code)
+end
+
+function M.send_ntangle_visual_v2()
+	vim.api.nvim_echo({{"Sending.", "Normal"}}, false, {})
+  local _,slnum,_,_ = unpack(vim.fn.getpos("'<"))
+  local _,elnum,_,_ = unpack(vim.fn.getpos("'>"))
+  local buf = vim.api.nvim_get_current_buf()
+
+  local found, ntangle_inc = pcall(require, "ntangle-inc")
+  assert(found)
+
+  local all_lines = {}
+  for lnum=slnum-1,elnum-1 do
+  	local hl_elem = ntangle_inc.Tto_hl_elem(buf, lnum)
+  	if hl_elem then
+  		local Tangle = require"vim.tangle"
+  		local ll = Tangle.get_ll_from_buf(buf)
+  		assert(ll)
+  		local hl = Tangle.get_hl_from_ll(ll)
+  		assert(hl)
+
+  		lines = hl:getlines_all(hl_elem, lines)
+  	end
+
+  	for _, line in ipairs(lines) do
+  		table.insert(all_lines, line)
+  	end
+
+  end
+
+  local ntangle_code = table.concat(all_lines, "\n")
+
   M.send_code(ntangle_code)
 end
 
