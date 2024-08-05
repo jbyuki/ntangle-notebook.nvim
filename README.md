@@ -4,6 +4,15 @@ Jupyter frontend for literate python files.
 
 ![](https://github.com/jbyuki/gifs/blob/main/jupyternotebook.png)
 
+Main Features
+-------------
+
+* No external dependency
+
+* Multiple kernel support
+
+* Visual range execution
+
 Requirements
 ------------
 
