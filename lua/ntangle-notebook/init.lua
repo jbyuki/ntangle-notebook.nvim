@@ -1083,6 +1083,10 @@ function M.send_ntangle_v2()
 	local lines = {}
 	local lnum = row-1
 	local hl_elem = ntangle_inc.Tto_hl_elem(buf, lnum)
+
+	if hl_elem and hl_elem.part then
+		hl_elem = hl_elem.part
+	end
 	if hl_elem then
 		local Tangle = require"vim.tangle"
 		local ll = Tangle.get_ll_from_buf(buf)
@@ -1110,7 +1114,6 @@ function M.send_ntangle_visual_v2()
 
   local all_lines = {}
   for lnum=slnum-1,elnum-1 do
-  	local hl_elem = ntangle_inc.Tto_hl_elem(buf, lnum)
   	if hl_elem then
   		local Tangle = require"vim.tangle"
   		local ll = Tangle.get_ll_from_buf(buf)

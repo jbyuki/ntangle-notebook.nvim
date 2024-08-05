@@ -14,12 +14,18 @@ local row, col = unpack(vim.api.nvim_win_get_cursor(0))
 
 local lines = {}
 local lnum = row-1
+@get_hl_elem_at_lnum
+if hl_elem and hl_elem.part then
+	hl_elem = hl_elem.part
+end
 @get_lines_at_lnum
 
 local ntangle_code = table.concat(lines, "\n")
 
-@get_lines_at_lnum+=
+@get_hl_elem_at_lnum+=
 local hl_elem = ntangle_inc.Tto_hl_elem(buf, lnum)
+
+@get_lines_at_lnum+=
 if hl_elem then
 	local Tangle = require"vim.tangle"
 	local ll = Tangle.get_ll_from_buf(buf)
