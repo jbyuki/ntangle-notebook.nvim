@@ -2,7 +2,7 @@
 
 Jupyter front end written for literate python files.
 
-![](https://raw.githubusercontent.com/jbyuki/gifs/main/Screenshot%202024-08-05%20212354.png)
+![](https://github.com/jbyuki/gifs/blob/main/jupyternotebook.png)
 
 Requirements
 ------------
