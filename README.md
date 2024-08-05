@@ -20,7 +20,7 @@ Requirements
 * [Jupyter notebook](https://jupyter.org/install) (`jupyter lab` is recommended)
 
 > [!WARNING]
-> Full support only for ntangle v2 (*.t2 files)
+> Full support only for ntangle v2 (`*py.t2` files)
 
 Configuration
 -------------
