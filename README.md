@@ -1,52 +1,52 @@
 # ntangle-notebook.nvim
 
-Jupyter front written in Lua. It will be made compatible with ntangle.nvim.
+Jupyter front end written for literate python files.
 
-**WIP**
+![](https://raw.githubusercontent.com/jbyuki/gifs/main/Screenshot%202024-08-05%20212354.png)
 
-![](https://github.com/jbyuki/gifs/blob/main/2022-06-29%2016-44-44_Trim.gif?raw=true)
+Requirements
+------------
 
+* [ntangle-inc.nvim](https://github.com/jbyuki/ntangle-inc.nvim)
+* [Jupyter notebook](https://jupyter.org/install) (`jupyter lab` is recommended)
 
-Test
-----
+> [!WARNING]
+> Full support only for ntangle v2 (*.t2 files)
 
-* Open qtconsole with `--JupyterWidget.include_other_output=True`. This will show output from other frontends.
-* In qtconsole, type `%connect_info`.
-Output should be similar to this:
-```json
-{
-  "shell_port": 60142,
-  "iopub_port": 60143,
-  "stdin_port": 60144,
-  "control_port": 60146,
-  "hb_port": 60145,
-  "ip": "127.0.0.1",
-  "key": "9f3a32bf-c538346fd9562326bc2bd1fa",
-  "transport": "tcp",
-  "signature_scheme": "hmac-sha256",
-  "kernel_name": ""
-}
+Configuration
+-------------
+
+### Keybindings
+
+```lua
+vim.api.nvim_create_autocmd({"BufRead", "BufNew"}, {
+  pattern = { "*.py.t2" },
+  callback = function(ev) 
+    local opts = { buffer = ev.buf, silent=true }
+    vim.keymap.set("n", "<leader>r", function() 
+      require"ntangle-notebook".send_ntangle_v2() 
+    end, opts)
+
+    vim.keymap.set('v', '<leader>r', ":SendNTangleV2<CR>",  opts)
+  end
+})
 ```
 
-* Connect with `lua require"ntangle-notebook".connect(SHELL_PORT, KEY)` where `SHELL_PORT` and `KEY` are taken from the connect infos.
+### Runtime dir
 
-* Execute code with `lua require"ntangle-notebook".send_code([[print("hello world")]])`
+Set the runtime directory. It can be found by running `jupyter --runtime-dir` or `python -m jupyter --runtime-dir`.
 
-* Note: It's possible to specify the jupyter runtime directory in `g:ntangle_notebook_runtime_dir` so that the SHELL_PORT and KEY argument do not need to be provided. It will connect to the latest started kernel.
-
-Autoscroll
-----------
-
-There might be some issues with this. A definite solution was not found but changing in `qtconsole/console_widget.py`.
-
-```python
-should_autoscroll = self._viewport_at_end()
+```lua
+vim.g.ntangle_notebook_runtime_dir = "..."
 ```
 
-to 
+Usage
+-----
 
-```python
-should_autoscroll = True # self._viewport_at_end()
-```
+- Start jupyter and launch a kernel
+- Execute `:lua require"ntangle-notebook".connect()`
+- Choose a kernel if multiple are proposed
 
-gives a delayed autoscroll at least.
+- Open a `*.py.t2` file and execute code by:
+  - In normal mode: Press `<leader>r`.
+  - In visual mode: Select a region and `<leader>r`.

@@ -12,20 +12,20 @@ assert(found)
 local buf = vim.api.nvim_get_current_buf()
 local row, col = unpack(vim.api.nvim_win_get_cursor(0))
 
-local lines = {}
 local lnum = row-1
 @get_hl_elem_at_lnum
 if hl_elem and hl_elem.part then
 	hl_elem = hl_elem.part
 end
-@get_lines_at_lnum
+@get_lines_at_hl_elem
 
 local ntangle_code = table.concat(lines, "\n")
 
 @get_hl_elem_at_lnum+=
 local hl_elem = ntangle_inc.Tto_hl_elem(buf, lnum)
 
-@get_lines_at_lnum+=
+@get_lines_at_hl_elem+=
+local lines = {}
 if hl_elem then
 	local Tangle = require"vim.tangle"
 	local ll = Tangle.get_ll_from_buf(buf)
@@ -53,7 +53,8 @@ assert(found)
 
 local all_lines = {}
 for lnum=slnum-1,elnum-1 do
-	@get_lines_at_lnum
+	@get_hl_elem_at_lnum
+	@get_lines_at_hl_elem
 	@append_lines_to_all_lines
 end
 
