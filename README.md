@@ -1,6 +1,6 @@
 # ntangle-notebook.nvim
 
-Jupyter front end written for literate python files.
+Jupyter frontend for literate python files.
 
 ![](https://github.com/jbyuki/gifs/blob/main/jupyternotebook.png)
 
