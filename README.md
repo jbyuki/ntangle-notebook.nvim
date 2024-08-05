@@ -52,7 +52,8 @@ vim.g.ntangle_notebook_runtime_dir = "..."
 Usage
 -----
 
-- Start jupyter and launch a kernel
+- Start jupyter and open a console
+- Right-click anywhere in console > Show All Kernel Activity
 - Execute `:lua require"ntangle-notebook".connect()`
 - Choose a kernel if multiple are proposed
 
