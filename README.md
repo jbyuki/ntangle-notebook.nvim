@@ -7,7 +7,7 @@ Jupyter frontend for literate python files.
 Main Features
 -------------
 
-* No external dependency
+* No external dependencies
 
 * Multiple kernel support
 
